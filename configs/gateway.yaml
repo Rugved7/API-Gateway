@@ -1,5 +1,0 @@
-server:
-  address: ":8080"
-
-auth:
-  jwt_secret: "VdmltIbU6MFAmfMG1NsAKZ95E6Pbfh3wVmgKN0Inj9e"
