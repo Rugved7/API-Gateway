@@ -1,0 +1,5 @@
+server:
+  address: ":PORT"
+
+auth:
+  jwt_secret: "jwt_secret"
