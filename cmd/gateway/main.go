@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Rugved7/api-gateway/internal/config"
+	"github.com/Rugved7/api-gateway/internal/observability"
 	"github.com/Rugved7/api-gateway/internal/server"
 )
 
@@ -29,7 +30,9 @@ func main() {
 	handler.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	srv := server.New(cfg.Server.Address, handler)
+
+	wrapperHandler := observability.LoggingMiddleware(handler)
+	srv := server.New(cfg.Server.Address, wrapperHandler)
 
 	go func() {
 		log.Printf("gateway listening on %s", cfg.Server.Address)
