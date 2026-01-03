@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Rugved7/api-gateway/internal/config"
+	"github.com/Rugved7/api-gateway/internal/middleware"
 	"github.com/Rugved7/api-gateway/internal/observability"
 	"github.com/Rugved7/api-gateway/internal/server"
 )
@@ -31,7 +32,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	wrapperHandler := observability.LoggingMiddleware(handler)
+	wrapperHandler := middleware.Chain(handler, observability.LoggingMiddleware)
 	srv := server.New(cfg.Server.Address, wrapperHandler)
 
 	go func() {
