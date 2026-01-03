@@ -10,10 +10,15 @@ import (
 
 type Config struct {
 	Server ServerConfig `yaml:"server"`
+	Auth   AuthConfig   `yaml:"auth"`
 }
 
 type ServerConfig struct {
 	Address string `yaml:"address"`
+}
+
+type AuthConfig struct {
+	JWTSecret string `yaml:"jwt_secret"`
 }
 
 func Load(path string) (*Config, error) {
