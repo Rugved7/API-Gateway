@@ -13,6 +13,7 @@ import (
 	"github.com/Rugved7/api-gateway/internal/config"
 	"github.com/Rugved7/api-gateway/internal/middleware"
 	"github.com/Rugved7/api-gateway/internal/middleware/auth"
+	"github.com/Rugved7/api-gateway/internal/middleware/ratelimit"
 	"github.com/Rugved7/api-gateway/internal/observability"
 	"github.com/Rugved7/api-gateway/internal/server"
 )
@@ -35,11 +36,18 @@ func main() {
 
 	validator := auth.NewValidator(cfg.Auth.JWTSecret)
 
+	limitter := ratelimit.NewLimiter(
+		cfg.RateLimit.Capacity,
+		cfg.RateLimit.RefillRate,
+	)
+
 	wrapperHandler := middleware.Chain(
 		handler,
 		observability.LoggingMiddleware,
 		auth.Middleware(validator),
+		ratelimit.Middleware(limitter),
 	)
+
 	srv := server.New(cfg.Server.Address, wrapperHandler)
 
 	go func() {

@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	Auth   AuthConfig   `yaml:"auth"`
+	Server    ServerConfig    `yaml:"server"`
+	Auth      AuthConfig      `yaml:"auth"`
+	RateLimit RateLimitConfig `yaml:"rate_limit"`
 }
 
 type ServerConfig struct {
@@ -19,6 +20,11 @@ type ServerConfig struct {
 
 type AuthConfig struct {
 	JWTSecret string `yaml:"jwt_secret"`
+}
+
+type RateLimitConfig struct {
+	Capacity   int `yaml:"capacity"`
+	RefillRate int `yaml:"refill_rate"`
 }
 
 func Load(path string) (*Config, error) {

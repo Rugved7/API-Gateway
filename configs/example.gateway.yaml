@@ -3,3 +3,7 @@ server:
 
 auth:
   jwt_secret: "jwt_secret"
+
+rate_limit:
+  capacity: 5
+  refill_rate: 1
