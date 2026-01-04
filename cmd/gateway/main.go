@@ -1,4 +1,3 @@
-// Package main is the entry point to the application
 package main
 
 import (
@@ -15,10 +14,14 @@ import (
 	"github.com/Rugved7/api-gateway/internal/middleware/auth"
 	"github.com/Rugved7/api-gateway/internal/middleware/ratelimit"
 	"github.com/Rugved7/api-gateway/internal/observability"
+	"github.com/Rugved7/api-gateway/internal/proxy"
+	"github.com/Rugved7/api-gateway/internal/router"
 	"github.com/Rugved7/api-gateway/internal/server"
 )
 
 func main() {
+
+	// Config loading
 	cfgPath := os.Getenv("GATEWAY_CONFIG")
 	if cfgPath == "" {
 		cfgPath = "configs/gateway.yaml"
@@ -29,43 +32,73 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	handler := http.NewServeMux()
-	handler.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	// Router setup
+	routes := make([]router.Route, 0, len(cfg.Routes))
+	for _, r := range cfg.Routes {
+		routes = append(routes, router.Route{
+			Prefix:   r.Prefix,
+			Upstream: r.Upstream,
+		})
+	}
+
+	rt := router.New(routes)
+
+	// Proxy setup
+	px := proxy.New(5 * time.Second)
+
+	// Core handler (routing + proxy)
+	baseHandler := http.NewServeMux()
+	baseHandler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		route, ok := rt.Match(r)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+
+		h, err := px.Handler(route.Upstream)
+		if err != nil {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+
+		h.ServeHTTP(w, r)
 	})
 
+	// Middleware chain (ORDER IS CRITICAL)
 	validator := auth.NewValidator(cfg.Auth.JWTSecret)
-
-	limitter := ratelimit.NewLimiter(
+	limiter := ratelimit.NewLimiter(
 		cfg.RateLimit.Capacity,
 		cfg.RateLimit.RefillRate,
 	)
 
-	wrapperHandler := middleware.Chain(
-		handler,
+	handler := middleware.Chain(
+		baseHandler,
 		observability.LoggingMiddleware,
 		auth.Middleware(validator),
-		ratelimit.Middleware(limitter),
+		ratelimit.Middleware(limiter),
 	)
 
-	srv := server.New(cfg.Server.Address, wrapperHandler)
+	// HTTP server
+	srv := server.New(cfg.Server.Address, handler)
 
 	go func() {
-		log.Printf("gateway listening on %s", cfg.Server.Address)
+		log.Printf("api gateway listening on %s", cfg.Server.Address)
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("error listening to server : %v", err)
+			log.Fatalf("server error: %v", err)
 		}
 	}()
 
-	shutdownCh := make(chan os.Signal, 1)
-	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
-	<-shutdownCh
+	// Graceful shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	log.Println("shutting down gateway")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	log.Println("shutting down api-gateway")
 	if err := srv.ShutDown(ctx); err != nil {
-		log.Printf("graceful shutting down failed: %v", err)
+		log.Printf("shutdown error: %v", err)
 	}
 }
