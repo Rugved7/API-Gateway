@@ -7,3 +7,9 @@ auth:
 rate_limit:
   capacity: 5
   refill_rate: 1
+
+routes:
+  - prefix: "/api/users"
+    upstream: "http://localhost:9001"
+  - prefix: "/api"
+    upstream: "http://localhost:9000"

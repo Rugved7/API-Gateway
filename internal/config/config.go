@@ -12,6 +12,7 @@ type Config struct {
 	Server    ServerConfig    `yaml:"server"`
 	Auth      AuthConfig      `yaml:"auth"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
+	Routes    []RouteConfig   `yaml:"routes"`
 }
 
 type ServerConfig struct {
@@ -25,6 +26,11 @@ type AuthConfig struct {
 type RateLimitConfig struct {
 	Capacity   int `yaml:"capacity"`
 	RefillRate int `yaml:"refill_rate"`
+}
+
+type RouteConfig struct {
+	Prefix   string `yaml:"prefix"`
+	Upstream string `yaml:"upstream"`
 }
 
 func Load(path string) (*Config, error) {
